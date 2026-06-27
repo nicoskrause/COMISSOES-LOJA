@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comissões — Loja Krause</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --brand: #1F3864;
+  --accent: #2563EB;
+  --accent-soft: #EFF4FF;
+  --green: #16A34A;
+  --green-soft: #F0FDF4;
+  --amber: #F59E0B;
+  --amber-soft: #FFFBEB;
+  --red: #DC2626;
+  --red-soft: #FEF2F2;
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F7F8FA;
+  --border: #E7E9EE;
+  --border-strong: #D8DCE3;
+  --text: #1A1D23;
+  --text-muted: #6B7280;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; -webkit-font-smoothing: antialiased; }
+.app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; position: sticky; top: 0; z-index: 20; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-logo { width: 38px; height: 38px; border-radius: 10px; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 15px; letter-spacing: .5px; }
+.app-header .h1 { font-size: 17px; font-weight: 700; letter-spacing: -.2px; color: var(--text); }
+.app-header .h1 span { color: var(--accent); }
+.app-header .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.toolbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; border: 1px solid transparent; border-radius: var(--radius-sm); padding: 9px 15px; font-size: 13px; font-weight: 600; font-family: inherit; transition: background .15s, border-color .15s, transform .05s; }
+.btn:active { transform: translateY(1px); }
+.btn-upload { background: var(--accent); color: #fff; }
+.btn-upload:hover { background: #1D4ED8; }
+.btn-print { background: var(--green); color: #fff; }
+.btn-print:hover { background: #15803D; }
+.btn-reset { background: var(--surface); color: var(--text-muted); border-color: var(--border-strong); }
+.btn-reset:hover { background: var(--surface-2); color: var(--text); }
+.btn svg { width: 16px; height: 16px; }
+#file-input { display: none; }
+.container { max-width: 1440px; margin: 0 auto; padding: 20px 28px 40px; }
+.upload-status:not(:empty) { margin-bottom: 4px; }
+.banner { border-radius: var(--radius-sm); padding: 11px 16px; font-size: 12.5px; font-weight: 500; display: flex; align-items: center; gap: 8px; border: 1px solid; }
+.banner.ok { background: var(--green-soft); color: #15803D; border-color: #BBF7D0; }
+.banner.warn { background: var(--amber-soft); color: #B45309; border-color: #FDE68A; }
+.banner.err { background: var(--red-soft); color: #B91C1C; border-color: #FECACA; }
+.report-period { font-size: 12px; color: var(--text-muted); margin: 14px 0 4px; }
+.report-period strong { color: var(--text); font-weight: 600; }
+.totals-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0 20px; }
+.total-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.total-box::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background: var(--accent); }
+.total-box.commission::before { background: var(--green); }
+.total-box.pct::before { background: var(--brand); }
+.total-box label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; display: block; margin-bottom: 6px; }
+.total-box .value { font-size: 24px; font-weight: 800; letter-spacing: -.5px; color: var(--text); }
+.total-box.commission .value { color: var(--green); }
+.layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+@media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
+.main-col { display: flex; flex-direction: column; gap: 16px; }
+.side-col { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 86px; }
+@media (max-width: 1040px) { .side-col { position: static; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.card-header { padding: 13px 16px; font-weight: 700; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px; }
+.rates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rate-item { display: flex; flex-direction: column; gap: 4px; }
+.rate-item label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.rate-item input[type=number] { width: 100%; padding: 7px 9px; border: 1.5px solid var(--border-strong); border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text); background: var(--surface); text-align: right; font-family: inherit; }
+.rate-item input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rate-sep { grid-column: 1/-1; border: none; border-top: 1px dashed var(--border-strong); margin: 6px 0; }
+.rate-label { grid-column: 1/-1; font-size: 10.5px; font-weight: 700; color: var(--brand); text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+.sector-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.sector-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); border-left: 4px solid var(--accent); }
+.sector-header.small-sector { border-left-color: #94A3B8; }
+.sector-title { font-weight: 700; font-size: 14px; color: var(--text); }
+.sector-type { font-size: 10.5px; font-weight: 600; color: var(--text-muted); background: #fff; border: 1px solid var(--border); padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
+.sector-header .meta-toggle { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.sector-subtotal { background: var(--surface-2); padding: 9px 16px; font-weight: 700; font-size: 12.5px; display: flex; justify-content: space-between; border-top: 1px solid var(--border); }
+.sector-subtotal .sub-val { color: var(--green); }
+table { width: 100%; border-collapse: collapse; }
+thead th { background: var(--surface); padding: 9px 12px; text-align: left; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+thead th.center { text-align: center; }
+thead th.right { text-align: right; }
+tbody tr { border-bottom: 1px solid #F1F2F5; transition: background .12s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface-2); }
+tbody td { padding: 8px 12px; vertical-align: middle; }
+tbody tr.leader-row { background: var(--amber-soft); }
+tbody tr.leader-row:hover { background: #FEF3C7; }
+tbody tr.special-row { background: var(--green-soft); }
+tbody tr.special-row:hover { background: #DCFCE7; }
+td.center { text-align: center; }
+.toggle { position: relative; display: inline-block; width: 38px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle .slider { position: absolute; inset: 0; border-radius: 20px; background: #CBD0D9; cursor: pointer; transition: .2s; }
+.toggle .slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 2px; bottom: 2px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.toggle input:checked + .slider { background: var(--green); }
+.toggle input:checked + .slider:before { transform: translateX(18px); }
+.vendor-name { font-weight: 500; font-size: 12.5px; color: var(--text); }
+.vendor-name.is-leader { font-weight: 700; }
+.badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 5px; margin-left: 6px; vertical-align: middle; letter-spacing: .3px; }
+.leader-badge { background: var(--amber); color: #fff; }
+.special-badge { background: var(--green); color: #fff; }
+.new-badge { background: var(--accent); color: #fff; }
+.tag-badge { background: var(--accent-soft); color: var(--accent); }
+.pct-cell { text-align: right; font-weight: 600; font-size: 12.5px; color: var(--text-muted); }
+.val-cell { text-align: right; font-weight: 700; font-size: 12.5px; color: var(--text); }
+.del-btn { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer; display: inline-grid; place-items: center; transition: .15s; }
+.del-btn:hover { background: var(--red-soft); color: var(--red); border-color: #FECACA; }
+.del-btn svg { width: 14px; height: 14px; }
+.add-row td { padding: 10px 12px; background: var(--surface-2); }
+.add-row input { padding: 7px 9px; border: 1.5px solid var(--border-strong); border-radius: 7px; font-size: 12px; font-family: inherit; width: 100%; color: var(--text); background: #fff; }
+.add-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.add-row .add-sales { text-align: right; }
+.btn-add-vendor { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--accent); border-radius: 7px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-add-vendor:hover { background: #DBE7FF; }
+.chart-wrap { position: relative; height: 210px; }
+#resumo-tbody td { padding: 7px 14px; }
+@media print {
+  body { background: #fff; font-size: 11px; }
+  .no-print { display: none !important; }
+  .app-header { position: static; border-bottom: 2px solid var(--brand); }
+  .container { padding: 0; max-width: none; }
+  .layout { display: block; }
+  .side-col { margin-top: 16px; position: static; }
+  .card, .total-box, .sector-block { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  .sector-block { margin-bottom: 8px; }
+  .totals-row { page-break-inside: avoid; }
+  thead th, tbody tr.leader-row, tbody tr.special-row, .sector-header, .sector-subtotal, .total-box::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="app-header">
+  <div class="brand">
+    <div class="brand-logo">LK</div>
+    <div>
+      <div class="h1">Loja Krause · Comissões <span id="period-title">Maio/2026</span></div>
+      <div class="subtitle">Altere advertências, metas e taxas em tempo real</div>
+    </div>
+  </div>
+  <div class="toolbar no-print">
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+    <button class="btn btn-upload" id="btn-upload" title="Enviar o relatório de vendas exportado do sistema">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importar Excel
+    </button>
+    <button class="btn btn-print" id="btn-print" title="Exportar / imprimir o relatório final">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Exportar / Imprimir
+    </button>
+    <button class="btn btn-reset" id="btn-reset" title="Voltar aos dados originais (Maio/2026)">Restaurar</button>
+  </div>
+</div>
+<div class="container">
+  <div class="upload-status no-print" id="upload-status"></div>
+  <div class="report-period" id="report-period">Período exibido: <strong id="period-label">Maio/2026</strong></div>
+  <div class="totals-row">
+    <div class="total-box"><label>Total de Vendas</label><div class="value" id="total-vendas">R$ 0,00</div></div>
+    <div class="total-box commission"><label>Total de Comissões</label><div class="value" id="total-comissoes">R$ 0,00</div></div>
+    <div class="total-box pct"><label>% Médio s/ Vendas</label><div class="value" id="total-pct">0,00%</div></div>
+  </div>
+  <div class="layout">
+    <div class="main-col" id="sectors-container"></div>
+    <div class="side-col">
+      <div class="card no-print">
+        <div class="card-header">Taxas de Comissão</div>
+        <div class="card-body">
+          <div class="rates-grid">
+            <div class="rate-label">Setores Grandes (Fem., Masc., Calç.)</div>
+            <div class="rate-item" style="grid-column:1/-1;background:var(--red-soft);border:1px solid #FECACA;border-radius:8px;padding:8px 10px">
+              <label style="color:var(--red)">Dedução por Advertência</label>
+              <div style="display:flex;align-items:center;gap:6px"><input type="number" id="r-adv-deduction" value="0.15" step="0.05" min="0" max="10" style="background:#fff">%<span style="font-size:10px;color:var(--text-muted)">subtraído da taxa atual</span></div>
+            </div>
+            <div class="rate-item"><label>Sem Advertência</label><input type="number" id="r-large-base" value="0.65" step="0.05" min="0" max="10">%</div>
+            <div class="rate-item"><label>Meta Setor Batida</label><input type="number" id="r-large-meta" value="0.80" step="0.05" min="0" max="10">%</div>
+            <div class="rate-item"><label>Bônus Meta Pessoal</label><input type="number" id="r-large-bonus" value="0.20" step="0.05" min="0" max="10">%</div>
+            <hr class="rate-sep">
+            <div class="rate-label">Setores Pequenos</div>
+            <div class="rate-item"><label>Sem Advertência</label><input type="number" id="r-small-base" value="0.85" step="0.05" min="0" max="10">%</div>
+            <div class="rate-item"><label>Meta Setor Batida</label><input type="number" id="r-small-meta" value="1.00" step="0.05" min="0" max="10">%</div>
+            <div class="rate-item"><label>Bônus Meta Pessoal</label><input type="number" id="r-small-bonus" value="0.20" step="0.05" min="0" max="10">%</div>
+            <hr class="rate-sep">
+            <div class="rate-label">Anderson Gomes (especial)</div>
+            <div class="rate-item"><label>Taxa Base</label><input type="number" id="r-anderson-base" value="1.50" step="0.05" min="0" max="10">%</div>
+            <div class="rate-item"><label>+ Meta Setor</label><input type="number" id="r-anderson-meta" value="2.25" step="0.05" min="0" max="10">%</div>
+            <hr class="rate-sep">
+            <div class="rate-label">Elisa Lacerda XV (especial)</div>
+            <div class="rate-item" style="grid-column:1/-1"><label>% sobre total setor XV</label><input type="number" id="r-elisa" value="1.00" step="0.05" min="0" max="10">%</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Comissões por Setor</div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-comissoes"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Resumo por Setor</div>
+        <div class="card-body" style="padding:0">
+          <table><thead><tr><th>Setor</th><th class="right">Vendas</th><th class="right">Comissões</th></tr></thead><tbody id="resumo-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const LIDERES = new Set(['ANDERSON GOMES','MICHELLE ARAUJO','JAUNA MATTOS','POLYANA TORRES','ELISA LACERDA XV','ALEXANDRA LIMA','CATIANE LAGES','CRISTIANE SILVA']);
+const META_PESSOAL_INICIAL = new Set(['CRISTIELEN MARTINS','OTILIA OLIVEIRA','VINICIUS DIAS','MICHELLE ARAUJO','LARISSA SEVERO','LISSELE BANDEIRA','ANA LUCIA SILVA','CLAUDIA SILVEIRA','JANAINA KEHL','ISABELA AZAMBUJA V.O','GABRIEL RODRIGUES','HELENA MARTINS','BIANCA GUIMARAES','LUCAS BARBOSA','MARY ANNE SANTOS','AMANDA MARRERO','KARINA ZAGO','EMILI MORAES','JOEL SILVA','VENDEDOR SITE','CRISTIANE SILVA','ALEXANDRA LIMA','JAUNA MATTOS','ANDERSON GOMES']);
+const META_SETOR_INICIAL = new Set(['Feminino','Masculino','Infantil','Lingerie','Bazar','XV Anos']);
+const SETORES_DEFAULT = [
+  { name:'Feminino', type:'large', metaSetor:true, vendors:[
+    {name:'ALINE CALDEIRA',sales:24817.39},{name:'ANA LUCIA SILVA',sales:271759.89},{name:'AMANDA MARRERO',sales:133785.41},{name:'CLAUDIA SILVEIRA',sales:119990.84},{name:'CAMILA PADILHA',sales:100751.14},{name:'CRISTIELEN MARTINS',sales:132082.05},{name:'EMILI MORAES',sales:100496.63},{name:'JAUNA MATTOS',sales:289771.85},{name:'LOJA KRAUSE',sales:58856.75},{name:'RAFAELA BRISOLARA',sales:469.69},{name:'CATIANE LAGES',sales:44984.83,leader:false,sectorTag:'Fem.'} ]},
+  { name:'Masculino', type:'large', metaSetor:true, vendors:[
+    {name:'GABRIEL RODRIGUES',sales:143214.31},{name:'LUCAS BARBOSA',sales:142394.88},{name:'TIAGO VICENTE',sales:86910.46},{name:'ANDERSON GOMES',sales:289180.26},{name:'JOEL SILVA',sales:176485.90},{name:'VINICIUS DIAS',sales:183105.07},{name:'EDGAR SILVA',sales:107435.01} ]},
+  { name:'Calçados', type:'large', metaSetor:false, vendors:[
+    {name:'BIANCA GUIMARAES',sales:119361.43},{name:'KARINA ZAGO',sales:116564.47},{name:'LAUANA DE LIMA',sales:22665.96,sectorTag:'Calç.'},{name:'MICHELLE ARAUJO',sales:127370.39},{name:'MIGUEL MACEDO',sales:19814.30},{name:'OTILIA OLIVEIRA',sales:145533.32},{name:'PRISCILA AVILA',sales:105343.01} ]},
+  { name:'Infantil', type:'small', metaSetor:true, vendors:[
+    {name:'ANA CAROLINA VELEDA',sales:6568.83},{name:'CATIANE LAGES',sales:16089.92},{name:'HELENA MARTINS',sales:43332.37},{name:'LISSELE BANDEIRA',sales:43624.44},{name:'MARY ANNE SANTOS',sales:50486.92},{name:'NATANIELE PEREIRA',sales:48501.16},{name:'LAUANA DE LIMA',sales:20520.45,sectorTag:'Inf.'} ]},
+  { name:'Lingerie', type:'small', metaSetor:true, vendors:[
+    {name:'ALEXANDRA LIMA',sales:79612.54},{name:'LARISSA SEVERO',sales:59064.96} ]},
+  { name:'Casa', type:'small', metaSetor:false, vendors:[
+    {name:'ISABEL PEREIRA',sales:48018.04},{name:'JANAINA KEHL',sales:80847.44},{name:'POLYANA TORRES',sales:54355.49} ]},
+  { name:'Bazar', type:'small', metaSetor:true, vendors:[
+    {name:'CRISTIANE SILVA',sales:67622.87},{name:'LUIZA OLIVEIRA',sales:45482.10},{name:'MILENE DUARTE',sales:45340.09} ]},
+  { name:'E-commerce', type:'small', metaSetor:false, vendors:[
+    {name:'BRUNA BIERHALS SITE',sales:3389.58},{name:'ISABELA AZAMBUJA V.O',sales:43357.94},{name:'VENDEDOR SITE',sales:179506.14} ]},
+  { name:'XV Anos', type:'small', metaSetor:true, vendors:[
+    {name:'LISANDRA BORT XV',sales:40179.57},{name:'LIZANDRA BARROS XV',sales:64390.87},{name:'VANUSA RODRIGUES XV',sales:69080.64},{name:'ELISA LACERDA XV',sales:37538.82} ]},
+];
+const clone = o => JSON.parse(JSON.stringify(o));
+let SETORES = clone(SETORES_DEFAULT);
+let state = {}, sectorMeta = {};
+const stateKey = (s,v) => s + '||' + v;
+function initState(){
+  state = {};
+  SETORES.forEach(s => s.vendors.forEach(v => { state[stateKey(s.name,v.name)] = { adv:false, metaPessoal:META_PESSOAL_INICIAL.has(v.name) }; }));
+  sectorMeta = {};
+  SETORES.forEach(s => { sectorMeta[s.name] = (s.metaSetor !== undefined) ? s.metaSetor : META_SETOR_INICIAL.has(s.name); });
+}
+const brl = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pctFmt = v => (v*100).toFixed(2).replace('.',',') + '%';
+const esc = s => (s ?? '').toString().replace(/"/g,'&quot;');
+function getRates(){
+  return {
+    advDeduction:+document.getElementById('r-adv-deduction').value/100,
+    largeBase:+document.getElementById('r-large-base').value/100,
+    largeMeta:+document.getElementById('r-large-meta').value/100,
+    largeBonus:+document.getElementById('r-large-bonus').value/100,
+    smallBase:+document.getElementById('r-small-base').value/100,
+    smallMeta:+document.getElementById('r-small-meta').value/100,
+    smallBonus:+document.getElementById('r-small-bonus').value/100,
+    andersonBase:+document.getElementById('r-anderson-base').value/100,
+    andersonMeta:+document.getElementById('r-anderson-meta').value/100,
+    elisa:+document.getElementById('r-elisa').value/100,
+  };
+}
+function calcVendorPct(vendor, sectorName, sectorType, metaSetor, rates){
+  const vn = vendor.name;
+  const isLeader = vendor.leader !== undefined ? vendor.leader : LIDERES.has(vn);
+  if (vn === 'ANDERSON GOMES') return metaSetor ? rates.andersonMeta : rates.andersonBase;
+  if (vn === 'ELISA LACERDA XV') return rates.elisa;
+  const st = state[stateKey(sectorName,vn)];
+  let base, bonus;
+  if (sectorType === 'large'){ base = metaSetor ? rates.largeMeta : rates.largeBase; bonus = st?.metaPessoal ? rates.largeBonus : 0; }
+  else { base = metaSetor ? rates.smallMeta : rates.smallBase; bonus = st?.metaPessoal ? rates.smallBonus : 0; }
+  let total = base + bonus;
+  if (st?.adv) total = Math.max(0, total - rates.advDeduction);
+  if (isLeader && metaSetor) total *= 2;
+  return total;
+}
+const TRASH_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+function buildSectors(){
+  const container = document.getElementById('sectors-container');
+  container.innerHTML = '';
+  SETORES.forEach(sector => {
+    const block = document.createElement('div');
+    block.className = 'sector-block';
+    const isLarge = sector.type === 'large';
+    const sid = sector.name.replace(/\s/g,'_');
+    block.innerHTML =
+      '<div class="sector-header ' + (isLarge ? '' : 'small-sector') + '">' +
+        '<span><span class="sector-title">' + sector.name + '</span><span class="sector-type">' + (isLarge ? 'Setor Grande' : 'Setor Pequeno') + '</span></span>' +
+        '<div class="meta-toggle">Meta Setor Batida<label class="toggle"><input type="checkbox" class="sector-meta-cb" data-sector="' + esc(sector.name) + '" ' + (sectorMeta[sector.name] ? 'checked' : '') + '><span class="slider"></span></label></div>' +
+      '</div>' +
+      '<div style="overflow-x:auto"><table><thead><tr>' +
+        '<th style="width:32%">Vendedor</th><th class="center">Advertência</th><th class="center">Meta Pessoal</th><th class="right">% Comissão</th><th class="right">Vlr Comissão</th><th class="center no-print" style="width:44px">Ação</th>' +
+      '</tr></thead><tbody id="tbody-' + sid + '"></tbody></table></div>' +
+      '<div class="sector-subtotal"><span>Subtotal ' + sector.name + '</span><span class="sub-val" id="subtotal-' + sid + '">R$ 0,00</span></div>';
+    container.appendChild(block);
+    const tbody = document.getElementById('tbody-' + sid);
+    sector.vendors.forEach(v => {
+      const isLeader = v.leader !== undefined ? v.leader : LIDERES.has(v.name);
+      const isSpecial = v.name === 'ANDERSON GOMES' || v.name === 'ELISA LACERDA XV';
+      const st = state[stateKey(sector.name,v.name)];
+      const rowClass = isSpecial ? 'special-row' : (isLeader ? 'leader-row' : '');
+      const safeId = (sector.name + '_' + v.name).replace(/[^a-zA-Z0-9]/g,'_');
+      const tagHtml = v.sectorTag ? '<span class="badge tag-badge">' + v.sectorTag + '</span>' : '';
+      const newHtml = v.isNew ? '<span class="badge new-badge no-print">Novo</span>' : '';
+      const badge = isSpecial ? '<span class="badge special-badge">Especial</span>' : (isLeader ? '<span class="badge leader-badge">Líder</span>' : '');
+      const advDis = isSpecial ? 'disabled style="opacity:.4"' : '';
+      const tr = document.createElement('tr');
+      tr.className = rowClass;
+      tr.innerHTML =
+        '<td><span class="vendor-name ' + (isLeader||isSpecial?'is-leader':'') + '">' + v.name + badge + tagHtml + newHtml + '</span></td>' +
+        '<td class="center"><label class="toggle"><input type="checkbox" class="adv-cb" data-vendor="' + esc(v.name) + '" data-sector="' + esc(sector.name) + '" ' + (st?.adv?'checked':'') + ' ' + advDis + '><span class="slider"></span></label></td>' +
+        '<td class="center"><label class="toggle"><input type="checkbox" class="metap-cb" data-vendor="' + esc(v.name) + '" data-sector="' + esc(sector.name) + '" ' + (st?.metaPessoal?'checked':'') + ' ' + (isSpecial?'disabled style="opacity:.4"':'') + '><span class="slider"></span></label></td>' +
+        '<td class="pct-cell" id="pct-' + safeId + '">—</td>' +
+        '<td class="val-cell" id="val-' + safeId + '">—</td>' +
+        '<td class="center no-print"><button class="del-btn" title="Remover vendedor" data-del-vendor="' + esc(v.name) + '" data-del-sector="' + esc(sector.name) + '">' + TRASH_SVG + '</button></td>';
+      tbody.appendChild(tr);
+    });
+    const addTr = document.createElement('tr');
+    addTr.className = 'add-row no-print';
+    addTr.innerHTML =
+      '<td><input class="add-name" type="text" placeholder="Nome do novo vendedor"></td>' +
+      '<td colspan="2"><input class="add-sales" type="number" step="0.01" min="0" placeholder="Vendas (R$)"></td>' +
+      '<td colspan="3"><button class="btn-add-vendor" data-sector="' + esc(sector.name) + '">+ Adicionar vendedor</button></td>';
+    tbody.appendChild(addTr);
+  });
+}
+let chartInstance = null;
+function recalcAll(){
+  const rates = getRates();
+  let grandTotal = 0, grandVendas = 0;
+  const sectorTotals = {}, sectorVendas = {};
+  const xvSector = SETORES.find(s => s.name === 'XV Anos');
+  const xvTotalVendas = xvSector ? xvSector.vendors.reduce((a,v) => a + v.sales, 0) : 0;
+  SETORES.forEach(sector => {
+    const metaSetor = sectorMeta[sector.name];
+    let sc = 0, ss = 0;
+    sector.vendors.forEach(v => {
+      const safeId = (sector.name + '_' + v.name).replace(/[^a-zA-Z0-9]/g,'_');
+      const isElisa = v.name === 'ELISA LACERDA XV';
+      const pct = calcVendorPct(v, sector.name, sector.type, metaSetor, rates);
+      const commission = isElisa ? xvTotalVendas * rates.elisa : v.sales * pct;
+      ss += v.sales; sc += commission;
+      const pctEl = document.getElementById('pct-' + safeId);
+      const valEl = document.getElementById('val-' + safeId);
+      if (pctEl) pctEl.textContent = isElisa ? pctFmt(rates.elisa) + '*' : pctFmt(pct);
+      if (valEl) valEl.textContent = brl(commission);
+    });
+    const subEl = document.getElementById('subtotal-' + sector.name.replace(/\s/g,'_'));
+    if (subEl) subEl.textContent = brl(sc);
+    sectorTotals[sector.name] = sc; sectorVendas[sector.name] = ss;
+    grandTotal += sc; grandVendas += ss;
+  });
+  document.getElementById('total-vendas').textContent = brl(grandVendas);
+  document.getElementById('total-comissoes').textContent = brl(grandTotal);
+  document.getElementById('total-pct').textContent = grandVendas > 0 ? pctFmt(grandTotal / grandVendas) : '0,00%';
+  const tbody = document.getElementById('resumo-tbody');
+  tbody.innerHTML = '';
+  SETORES.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td style="font-weight:500">' + s.name + '</td><td style="text-align:right;color:var(--text-muted)">' + brl(sectorVendas[s.name]) + '</td><td style="text-align:right;font-weight:700;color:var(--brand)">' + brl(sectorTotals[s.name]) + '</td>';
+    tbody.appendChild(tr);
+  });
+  const trTotal = document.createElement('tr');
+  trTotal.style.background = 'var(--accent-soft)';
+  trTotal.innerHTML = '<td style="font-weight:800">TOTAL</td><td style="text-align:right;font-weight:800">' + brl(grandVendas) + '</td><td style="text-align:right;font-weight:800;color:var(--brand)">' + brl(grandTotal) + '</td>';
+  tbody.appendChild(trTotal);
+  updateChart(sectorTotals);
+}
+function updateChart(sectorTotals){
+  const labels = Object.keys(sectorTotals);
+  const data = labels.map(k => +sectorTotals[k].toFixed(2));
+  const clrs = ['#1F3864','#2563EB','#3B82F6','#16A34A','#22C55E','#4ADE80','#F59E0B','#FBBF24','#8B5CF6','#A78BFA','#EC4899'];
+  const bg = labels.map((_,i) => clrs[i % clrs.length]);
+  if (chartInstance){
+    chartInstance.data.labels = labels;
+    chartInstance.data.datasets[0].data = data;
+    chartInstance.data.datasets[0].backgroundColor = bg;
+    chartInstance.update();
+  } else {
+    const ctx = document.getElementById('chart-comissoes').getContext('2d');
+    chartInstance = new Chart(ctx, {
+      type:'bar',
+      data:{ labels, datasets:[{ label:'Comissão (R$)', data, backgroundColor:bg, borderRadius:6 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+        scales:{ y:{ grid:{ color:'#F1F2F5' }, ticks:{ callback:v => 'R$' + (v/1000).toFixed(0) + 'k', font:{ size:10 } } }, x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } } } }
+    });
+  }
+}
+function restoreAdvColors(){
+  document.querySelectorAll('.adv-cb').forEach(cb => { cb.nextElementSibling.style.background = cb.checked ? 'var(--red)' : ''; });
+}
+function addVendor(sectorName, name, sales){
+  const sec = SETORES.find(s => s.name === sectorName);
+  if (!sec) return;
+  name = (name||'').trim().toUpperCase();
+  if (!name){ alert('Digite o nome do vendedor.'); return; }
+  if (sec.vendors.some(v => v.name === name)){ alert('Esse vendedor já existe neste setor.'); return; }
+  sec.vendors.push({ name, sales:+sales || 0, isNew:true });
+  state[stateKey(sectorName,name)] = { adv:false, metaPessoal:META_PESSOAL_INICIAL.has(name) };
+  buildSectors(); recalcAll(); restoreAdvColors();
+  showStatus('ok', '✅ <b>' + name + '</b> adicionado ao setor ' + sectorName + '.');
+}
+function removeVendor(sectorName, vendorName){
+  const sec = SETORES.find(s => s.name === sectorName);
+  if (!sec) return;
+  if (!confirm('Remover "' + vendorName + '" do setor ' + sectorName + '?')) return;
+  sec.vendors = sec.vendors.filter(v => v.name !== vendorName);
+  delete state[stateKey(sectorName,vendorName)];
+  buildSectors(); recalcAll(); restoreAdvColors();
+  showStatus('warn', '🗑️ <b>' + vendorName + '</b> removido do setor ' + sectorName + '.');
+}
+const norm = s => (s ?? '').toString().trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const SECTOR_ALIASES = { 'FEM':'Feminino','FEMININO':'Feminino','MASC':'Masculino','MASCULINO':'Masculino','CALC':'Calçados','CALCADOS':'Calçados','INF':'Infantil','INFANTIL':'Infantil','LING':'Lingerie','LINGERIE':'Lingerie','CASA':'Casa','BAZAR':'Bazar','SITE':'E-commerce','ECOMMERCE':'E-commerce','E-COMMERCE':'E-commerce','V.O':'E-commerce','VO':'E-commerce','XV':'XV Anos','XV ANOS':'XV Anos','XVANOS':'XV Anos' };
+function mapSector(raw){ if (!raw) return ''; const n = norm(raw); return SECTOR_ALIASES[n] || raw.trim(); }
+const vendorMatches = (defN, fileN) => defN === fileN || defN.startsWith(fileN + ' ') || fileN.startsWith(defN + ' ');
+function findColumn(headers, candidates){
+  const H = headers.map(h => norm(h));
+  for (const c of candidates){ const i = H.findIndex(h => h === norm(c)); if (i >= 0) return i; }
+  for (const c of candidates){ const i = H.findIndex(h => h.includes(norm(c))); if (i >= 0) return i; }
+  return -1;
+}
+function parseNumberBR(raw){
+  if (typeof raw === 'number') return raw;
+  if (raw == null) return 0;
+  let s = raw.toString().trim().replace(/[R$\s]/g,'');
+  if (s === '') return 0;
+  if (s.includes(',')) s = s.replace(/\./g,'').replace(',','.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function showStatus(type, msg){ document.getElementById('upload-status').innerHTML = '<div class="banner ' + type + '">' + msg + '</div>'; }
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+      importRows(rows, file.name);
+    } catch (err){ showStatus('err', '❌ Não consegui ler o arquivo. Verifique se é um Excel (.xlsx) válido. Detalhe: ' + err.message); }
+  };
+  reader.onerror = () => showStatus('err', '❌ Erro ao abrir o arquivo.');
+  reader.readAsArrayBuffer(file);
+}
+function importRows(rows, fileName){
+  if (!rows || rows.length < 2){ showStatus('err', '❌ O arquivo parece vazio.'); return; }
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 15); i++){
+    const joined = rows[i].map(c => norm(c)).join('|');
+    if (/(VENDEDOR|NOME|FUNCIONARIO|COLABORADOR)/.test(joined)){ headerIdx = i; break; }
+  }
+  const headers = rows[headerIdx];
+  const idxVendor = findColumn(headers, ['vendedor','nome','funcionario','colaborador','nome vendedor']);
+  const idxSector = findColumn(headers, ['setor','departamento','depto','secao','grupo','area']);
+  const idxSales = findColumn(headers, ['vlr venda','valor venda','vl venda','vendas','venda','vlr','valor','total','venda liquida','valor vendas','total vendas','faturamento','liquido']);
+  if (idxVendor < 0 || idxSales < 0){
+    showStatus('err', '❌ Não encontrei as colunas necessárias. O arquivo precisa ter ao menos uma coluna de <b>Vendedor</b> e uma de <b>Vendas/Valor</b>. Cabeçalho lido: ' + headers.join(' | '));
+    return;
+  }
+  SETORES.forEach(s => s.vendors.forEach(v => { v._matched = false; }));
+  const sectorLookup = {};
+  SETORES.forEach(s => sectorLookup[norm(s.name)] = s);
+  let matched = 0, added = 0, newSectors = 0;
+  for (let i = headerIdx + 1; i < rows.length; i++){
+    const row = rows[i];
+    const vName = (row[idxVendor] ?? '').toString().trim();
+    if (!vName || norm(vName) === 'TOTAL') continue;
+    const rawSector = idxSector >= 0 ? (row[idxSector] ?? '').toString().trim() : '';
+    const mappedSector = mapSector(rawSector);
+    const sales = parseNumberBR(row[idxSales]);
+    const vKey = norm(vName), sKey = norm(mappedSector);
+    let sec = mappedSector ? sectorLookup[sKey] : null;
+    let target = null;
+    if (sec){
+      target = sec.vendors.find(v => !v._matched && vendorMatches(norm(v.name), vKey)) || sec.vendors.find(v => vendorMatches(norm(v.name), vKey));
+    }
+    if (!target && !sec){
+      for (const s of SETORES){ const c = s.vendors.find(v => !v._matched && vendorMatches(norm(v.name), vKey)); if (c){ target = c; sec = s; break; } }
+    }
+    if (target){ target.sales = sales; target._matched = true; matched++; }
+    else {
+      if (!sec){
+        const niceName = mappedSector || 'Outros';
+        sec = { name:niceName, type:'small', metaSetor:false, vendors:[] };
+        SETORES.push(sec); sectorLookup[norm(niceName)] = sec; sectorMeta[niceName] = false; newSectors++;
+      }
+      sec.vendors.push({ name:vName, sales, isNew:true }); added++;
+    }
+  }
+  let zeroed = 0;
+  SETORES.forEach(s => s.vendors.forEach(v => { if (v._matched === false && !v.isNew){ v.sales = 0; zeroed++; } delete v._matched; }));
+  Object.keys(sectorMeta).forEach(k => { if (!SETORES.find(s => s.name === k)) delete sectorMeta[k]; });
+  const prevMeta = { ...sectorMeta };
+  initState();
+  Object.keys(prevMeta).forEach(k => { if (k in sectorMeta) sectorMeta[k] = prevMeta[k]; });
+  buildSectors(); recalcAll(); restoreAdvColors();
+  const period = guessPeriod(fileName);
+  if (period){ document.getElementById('period-title').textContent = period; document.getElementById('period-label').textContent = period; }
+  let msg = '✅ <b>' + fileName + '</b> importado. ' + matched + ' vendedores atualizados';
+  if (added) msg += ', ' + added + ' novo(s) adicionado(s)';
+  if (newSectors) msg += ', ' + newSectors + ' setor(es) novo(s)';
+  if (zeroed) msg += '. ' + zeroed + ' vendedor(es) do molde ficaram sem venda (zerados)';
+  msg += '. Confira advertências e metas antes de exportar.';
+  showStatus(added || newSectors || zeroed ? 'warn' : 'ok', msg);
+}
+function guessPeriod(fileName){
+  const meses = ['janeiro','fevereiro','marco','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const f = norm(fileName);
+  for (let i = 0; i < meses.length; i++){
+    if (f.includes(norm(meses[i]))){
+      const ano = (f.match(/20\d{2}/) || [''])[0];
+      const nome = meses[i];
+      const cap = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase();
+      return cap + (ano ? '/' + ano : '');
+    }
+  }
+  const m = f.match(/(0[1-9]|1[0-2])[\/\-_.](20\d{2})/);
+  if (m) return m[1] + '/' + m[2];
+  return null;
+}
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('adv-cb')){
+    const st = state[stateKey(e.target.dataset.sector, e.target.dataset.vendor)];
+    if (st) st.adv = e.target.checked;
+    e.target.nextElementSibling.style.background = e.target.checked ? 'var(--red)' : '';
+    recalcAll();
+  }
+  if (e.target.classList.contains('metap-cb')){
+    const st = state[stateKey(e.target.dataset.sector, e.target.dataset.vendor)];
+    if (st) st.metaPessoal = e.target.checked;
+    recalcAll();
+  }
+  if (e.target.classList.contains('sector-meta-cb')){ sectorMeta[e.target.dataset.sector] = e.target.checked; recalcAll(); }
+});
+document.addEventListener('input', e => {
+  if (e.target.tagName === 'INPUT' && e.target.type === 'number' && e.target.id.startsWith('r-')) recalcAll();
+});
+document.addEventListener('click', e => {
+  const del = e.target.closest('[data-del-vendor]');
+  if (del){ removeVendor(del.dataset.delSector, del.dataset.delVendor); return; }
+  const add = e.target.closest('.btn-add-vendor');
+  if (add){ const tr = add.closest('tr'); addVendor(add.dataset.sector, tr.querySelector('.add-name').value, tr.querySelector('.add-sales').value); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.target.classList.contains('add-name') || e.target.classList.contains('add-sales'))){
+    const tr = e.target.closest('tr');
+    const btn = tr.querySelector('.btn-add-vendor');
+    addVendor(btn.dataset.sector, tr.querySelector('.add-name').value, tr.querySelector('.add-sales').value);
+  }
+});
+document.getElementById('btn-upload').addEventListener('click', () => document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change', e => { const f = e.target.files[0]; if (f) handleFile(f); e.target.value = ''; });
+document.getElementById('btn-print').addEventListener('click', () => window.print());
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (!confirm('Restaurar os dados originais (Maio/2026)? As alterações atuais serão perdidas.')) return;
+  SETORES = clone(SETORES_DEFAULT);
+  initState(); buildSectors(); recalcAll(); restoreAdvColors();
+  document.getElementById('period-title').textContent = 'Maio/2026';
+  document.getElementById('period-label').textContent = 'Maio/2026';
+  showStatus('ok', '↩️ Dados originais (Maio/2026) restaurados.');
+});
+initState(); buildSectors(); recalcAll(); restoreAdvColors();
+</script>
+</body>
+</html>
